@@ -1,0 +1,9 @@
+build/
+out/*
+.vscode/
+.vs/
+.idea/
+CMakeSettings.json
+CMakeUserPresets.json
+*.uncrustify
+*.unc-backup*

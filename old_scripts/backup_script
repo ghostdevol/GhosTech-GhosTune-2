@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -e
+
+echo "=== GhosTune Unified Build ==="
+
+# Root project folder
+ROOT_DIR="$(pwd)"
+
+# Component paths
+FREEDIAG_DIR="$ROOT_DIR/freediag-master"
+NPKERN_DIR="$ROOT_DIR/npkern-master"
+NISPROG_DIR="$ROOT_DIR/homebrew-nisprog-master"
+
+echo "--- Checking directories ---"
+for d in "$FREEDIAG_DIR" "$NPKERN_DIR" "$NISPROG_DIR"; do
+    if [ ! -d "$d" ]; then
+        echo "ERROR: Missing directory: $d"
+        exit 1
+    fi
+done
+
+echo "--- Cleaning freediag (removing broken modules) ---"
+rm -rf "$FREEDIAG_DIR/scantool" || true
+rm -rf "$FREEDIAG_DIR/tests" || true
+rm -rf "$FREEDIAG_DIR/schedSetter" || true
+rm -rf "$FREEDIAG_DIR/doc" || true
+rm -rf "$FREEDIAG_DIR/doc_interfaces" || true
+
+# Remove CMake references to removed modules
+sed -i 's/add_subdirectory(scantool)/# removed scantool/' "$FREEDIAG_DIR/CMakeLists.txt" || true
+sed -i 's/add_subdirectory(tests)/# removed tests/' "$FREEDIAG_DIR/CMakeLists.txt" || true
+sed -i 's/add_subdirectory(schedSetter)/# removed schedSetter/' "$FREEDIAG_DIR/CMakeLists.txt" || true
+
+echo "--- Building freediag-core ---"
+cd "$FREEDIAG_DIR"
+rm -rf build
+mkdir build
+cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=$PREFIX
+make -j$(nproc)
+make install
+
+echo "--- Building npkern (header-only, nothing to compile) ---"
+# Nothing to build, but we ensure headers exist
+if [ ! -f "$NPKERN_DIR/npkern.h" ]; then
+    echo "ERROR: npkern.h missing"
+    exit 1
+fi
+
+echo "--- Building nisprog ---"
+cd "$NISPROG_DIR"
+rm -rf build
+mkdir build
+cd build
+cmake .. -DCMAKE_INSTALL_PREFIX=$PREFIX
+make -j$(nproc)
+
+echo "=== GhosTune Build Complete ==="
+echo "Binary should be inside: $NISPROG_DIR/build/"

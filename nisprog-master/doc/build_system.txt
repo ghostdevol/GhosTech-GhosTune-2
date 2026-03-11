@@ -1,0 +1,151 @@
+freediag build system overview and compilation instructions
+
+
+**************** Notes for compiling on Windows ****************
+
+As of 2021/02 :
+
+* Visual Studio 2017 (x86/x64) (cmake 3.10.0 and higher) works
+* Visual Studio 2019 (x86/x64) (integrated cmake) works
+* Visual Studio Code on Windows (MinGW, MinGW64, BCC, MSVC) (cmake 3.10.0 and higher) works
+* Visual Studio Code remote on WSL (cmake 3.13.4 default installation debian) works
+* Visual Studio 2017 builds with toolset v141 will not run on Windows XP but will run on Windows 7 and higher
+* Visual Studio 2017 builds with toolset v141_xp work for Windows XP
+* Visual Studio 2019 builds with toolset v142 will not run on Windows XP but will run on Windows 7 and higher
+* Visual Studio 2019 builds with toolset v141_xp work for Windows XP
+* Binaries build with MinGW and Borland/Embarcadero work for Windows XP
+
+
+**************** instructions for cmake ****************
+
+**** 1A- Steps to compile freediag on win with MS Windows Visual Studio 2019/Visual Studio Code ****
+
+To compile freediag on win using these IDEs, the general process is as such
+    -extract the source tree (git clone, or a source package).
+    -make sure cmake version 3.10 or higher is installed and %PATH% holds the cmake/bin directory.
+	 Visual Studio 2019 has a cmake installation integrated so no extra action is required.
+	-open the source directory from the IDE. Visual Studio 2019 has the option "Open local folder" which
+	 will start the cmake integration automatically. There is no need to generate MSBuild project files
+	 with cmake although this works as well. Visual Studio Code may suggest the installation of serveral
+	 extensions (e.g. C/C++ support, IntelliSense, CMake Tools).
+	-the cmake integration in both IDEs will guide you through the cmake configuration process.
+	-Visual Studio Code will detect existing MinGW and Visual Studio Build Tool installations. The
+	 Borland/Embarcadero Compiler (e.g Embarcadero C++ Compiler Tools or C++ Builder Community Edition)
+	 can be added manually. For Visual Studio 2019 the build targets x86/x64 Debug/Release are tested.
+	-After configuration start the build process in the IDE.
+
+**** 1B- Steps to compile freediag on win with MS Windows Visual Studio 2019 for Windows XP (toolset 141_xp) ****
+
+To compile freediag on win using these IDEs, the general process is as such
+    -extract the source tree (git clone, or a source package).
+    -make sure cmake version 3.14 or higher is installed and %PATH% holds the cmake/bin directory.
+	-from the Visual Studio 2019 installer install "MSVC v141 - VS 2017 C++x64/x86-Buildtools(v14.16)
+	 and "C++-Windows XP-Support for Tools in VS 2017 (v141) [deprecated]".
+	-open a "x86 Native Tools Command Prompt for Visual Studio 2019" command prompt.
+	-from the command prompt configure the project like is to build Windows XP 32bit binaries:
+
+		cmake -G"Visual Studio 16 2019"
+		      -A Win32
+			  -T v141_xp
+			  -DCMAKE_C_COMPILER="cl"
+			  -DCMAKE_CC_COMPILER="cl"
+			  -S <source directory>
+			  -B <build directory>
+
+	-use msbuild or cmake --build <build directory> to build the project.
+
+**** 1C- Steps to compile freediag on MS Windows using Cmake GUI and MinGW ****
+
+To compile freediag on win, the general process is as such (rename directories as required)
+	-make sure cmake is installed and %PATH% holds the cmake/bin directory
+	-extract the source tree (git clone, or a source package) to somewhere\srcdir\
+	-make an empty build directory not far from the source tree, I recommend srcdir\..\builddir\
+	-cd to builddir
+	-run "cmake-gui ..\srcdir" : this uses the current directory (builddir) to store the CMake cache & all output files.
+	-set the desired "Generator" (i.e. I use "MingW native toolchain" but you could select VS9 or whatever)
+	-click Configure then Generate.
+	 (Make sure to look at the configurable options. The nearest equivalent to "./configure --help" would
+	 be "cmake -L", or browsing the cached variable list from cmake-gui.
+	-compile according to your selected toolchain. I run mingw32-make from the builddir and off it goes.
+
+
+
+**** 1D- Steps to compile freediag on linux ****
+
+The instructions given above for Win may be used almost as-is on linux; here are methods without using
+"cmake-gui"
+	-extract the source tree (git clone, or a source package) to  <srcdir>
+	-make an empty build directory not far from the source tree, I recommend <srcdir>/../<builddir>
+	-cd to builddir (important !!)
+
+	either A) (preferred, if ncurses is available)
+		-run "ccmake [-G <generator_name>] ../<srcdir>"
+		(note: specifying -G <generator name> may be optional, I think it defaults to "UNIX Makefiles" )
+		-press "c" to configure
+		-customize options as required
+		-press "g" to generate Makefiles or project files as applicable
+	or B) ( command-line only)
+		-run "cmake [-G <generator_name>] ../<srcdir>" ; example : "cmake ../freediag"
+		(note: specifying -G <generator name> may be optional, I think it defaults to "UNIX Makefiles"
+		 which is usually fine.)
+
+		-As required, run "cmake -L" to view current cache values. This is similar to "./configure --help".
+		-As required, run "cmake -D <var>:<type>=<value>" to modify one of the previously listed values, such as
+		 USE_RCFILE, etc. Example : "cmake -D USE_RCFILE:BOOL=ON"
+
+	then
+	-run make; or open IDE project file if applicable
+
+
+If generating makefiles, there are a few special targets added by CMake :
+	- make edit_cache		// open cmake-gui cache editor if applicable
+	- make package		// generate a binary package
+	- make package_source	// generate source tar.gz
+	- make help		//show available targets
+
+Once the Makefiles are generated, it's usually not necessary to run cmake again unless the CMakeLists.txt files
+were changed, or build options were changed.
+
+
+
+**************** CMake background info ****************
+
+I added a CMake build system specifically to support WIN targets, as the GNU autotools
+(autoconf, ./configure & friends) are not trivial to use on MS platforms. CMake should also make
+other platforms (OSX) easier to support as well.
+
+
+As distributed, the CMake build system for freediag consists of the following files in the source tree :
+
+- cconf.h.in 		// manually edited, it is eventually parsed by CMake to create cconf.h
+- CMakeLists.txt	//there's one of these in every subdirectory with compiled code.
+
+The CMakeLists.txt are roughly equivalent to the autotools' configure.ac and Makefile.am files, which
+are edited manually to describe the build process : dependencies, required source files, executable names, etc.
+
+4- Debian/Ubuntu build simple script
+Install requirements:
+
+	sudo apt install wget unzip build-essential cmake g++ make pkg-config
+
+Download latest sources (via wget):
+
+	wget -O freediag.zip https://github.com/fenugrec/freediag/archive/master.zip
+	unzip freediag.zip
+	cd freediag-master
+	./build_simple.sh
+
+**************** running CMake test suite ****************
+
+There are a few tests to verify minimal functionality.
+Automating tests of software such as freediag is very challenging as it can run on a vast assortment of hardware, to connect with a wide variety of ECUs.
+
+The current test strategy is :
+
+- a collection of script-like tests in the test/ subfolder, comprising of .ini scripts and carsom .db files.
+- a standalone program, `diag_test`, to "exercise code paths not easy to test through the .ini-based testsuite."
+
+To run the ini-based tests in 16x parallel:
+`ctest -j 16`
+To skip the tests that need a connected dumb interface :
+`ctest -I 3 -j 16`

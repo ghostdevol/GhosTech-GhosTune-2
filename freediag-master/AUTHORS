@@ -1,0 +1,45 @@
+Currently maintained by fenugrec.
+
+Other contributors listed in approximate chronological order of activity:
+
+Richard Almeida 2001-2003
+Bjorn Helgaas ~ 2001-2002 ?
+Andy Whittaker ? <2003
+Peter Dufault  ? <2003
+Guilhem Valentin ~2003
+Steve Baker ?-2004
+Colin J Helliwell ~2004
+Steve Meisner ~2004
+Vasco Nevoa ~2004
+Tomasz Kazmierczak 2015-2016
+Adam Goldman 2016-2017
+Neven Sajko 2017-2018
+Christian Fehse 2021-
+fenugrec 2009-
+
+
+****
+The following notes were written by Steve Baker when he took over the project (~2003) :
+
+                               --ooOoo--
+
+Freediag was originally written by Richard Almeida - he looked after the
+package up to version 0.3a and provided sporadic CVS updates until August 2003.
+
+Andy Whittaker did work in tidying up the code - and looked at making a
+Windows version.
+
+Bjorn Helgaas added logging and some other functionality.
+ 
+Guilhem Valentin wrote the dynamometer package in 2003 according to the mailing list.
+
+                               --ooOoo--
+
+As of March 2004, there has been a complete break between the original
+developers and the present maintainers - so I cannot tell precisely who
+contributed what before August 2003.  If you were a contributor and would
+like to be credited here - please let me know.
+
+Peter Dufault did a radical cleanup of the code (around 2003)
+
+                               --ooOoo--

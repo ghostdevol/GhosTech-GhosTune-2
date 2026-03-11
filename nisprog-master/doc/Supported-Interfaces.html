@@ -1,0 +1,302 @@
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html">
+  <title>Freediag - Supported Interfaces</title>
+  <link href="style.css" type="text/css" rel="stylesheet">
+</head>
+
+<body>
+
+  <div class="title">FREEDIAG</div>
+  
+  <div class="subtitle">Supported Hardware Interfaces</div>
+
+  <br><br>
+
+  <div align="center">
+    <img src="title.png">
+    <br>
+    [ <a href="index.html"> Home </a> ]
+    [ <a href="https://www.sourceforge.net/projects/freediag/"> Download @Sourceforge </a> ]
+    [ <a href="Scantool-Manual.html"> Documentation </a> ]
+    <br>
+
+    [ <a href="https://github.com/fenugrec/freediag/"> Source code @github [primary] </a> ]
+  </div>
+
+
+  
+  <p>This manual applies to Version 1.06 of freediag
+
+  <p>Table of contents:
+  <ul>
+    <li><a href="#interfaces">Electrical Interface Types</a>
+    <li><a href="#types">About Smart/Dumb classification</a>
+    <li><a href="#supported">Freediag Supported Interfaces</a>
+    <li><a href="#matrix">Compatibility Matrix</a>
+  </ul>
+
+  <br>
+  <a name="interfaces"></a>
+  <div class="section">Electrical Interface Types</div>
+
+  <p>There are various common hardware interfaces used for diagnostic
+  interfaces to vehicle electronic control units (ecus). Most manufacturers use
+  one or two such interfaces for all systems on a vehicle. These include:
+
+  <p><ul>
+    <li>ISO9141
+    <li>ISO14230
+    <li>SAEJ1850-VPW
+    <li>SAEJ1850-PWM
+    <li>CAN
+  </ul>
+
+  <p>ISO9141 and ISO14230 are essentially compatible at an electrical level
+  (with the exception that the latter will work on 24 volt vehicles).
+
+  <p>The freediag protocol stack supports the above list with the exception of
+  the CAN. The US OBDII standard and the European EOBD standard for
+  communicating with emissions related ECUs do not mandate CAN support.
+  
+  <p>The ISO protocols are generally used by European Vehicles, and the two
+  SAEJ1850 types by Ford and GM.
+  
+  <p>At a software level, ISO14230 is a vastly extended ISO9141-2 protocol that
+  supports much longer data frames and much quicker communications startup with
+  the ECU.
+  
+  <p>Further information can be obtained from:
+  
+  <p><ul>
+    <li>ISO: <a href="http://www.iso.ch/">http://www.iso.ch</a>
+    <li>SAE: <a href="http://www.sae.org/">http://www.sae.org</a>
+  </ul>
+  
+  <br>
+  <a name="types"></a>
+  <div class="section">About Smart/Dumb classification</div>
+  <p>There are two general types of interfaces, referred to as "active" / "smart"
+  (with an onboard microcontroller) and "passive" / "dumb" (no mcu, only signal
+  level translation and possibly opto-isolation).<br>
+<ul><li>
+"Active" IFCs are very friendly for the programmers, because
+they take care of all the car protocol timing issues, and turn the
+very strange and demanding signals into a simple PC serial port flow
+of characters. This is like using the "AT"modem commands, so you can
+see how easy it is. So timing is not critical and can be left to the
+interface HW, and logical results are garanteed at the SW level. However,
+the protocol is interface-proprietary.<br>
+It may also set limits on what freediag can do outside of what the interface supports,
+such as custom protocols over standard layers etc.<br>
+<li>
+"Passive" IFCs have very little electronics on them, because they
+only try to protect the PC serial port and adapt the voltage levels (sometimes with
+optical isolation) . This means that the PC is dealing directly with the
+car's ECU signals, and therefore the timing must be VERY precise. But
+these IFCs have one advantage: they are open-source-friendly and low-level enough
+to allow any protocol to be used. In some cases they can also be faster than "smart" interfaces.<br>
+</ul>
+  <br>
+  <a name="supported"></a>
+  <div class="section">Freediag Supported Interfaces</div>
+
+  <p>Freediag contains various drivers for different adapters that connect the
+  PC serial port to a vehicle. Certain interfaces support more protocol types
+  than have been implemented/tested within a driver, and some interfaces need
+  to be ordered with special attributes (such as their address) to work without
+  recompiling the freediag software library.
+
+  <p><ol>
+    <li>Generic dumb serial adaptors<br><br>
+    Freediag Driver: DUMB (diag_l0_dumb.c)<br>
+    *** read <a href="dumb_interfaces.txt">doc/dumb_interfaces.txt !!!</a> ***<br>
+    <br>
+    These are generic serial to K-line interfaces, typically very simple circuits *without* an onboard microcontroller.<br>
+    VAG409 / KKL409 interfaces fall in this category. Other examples include:<br>
+    Andy Whittaker's OBD-II ISO9141 interface;<br>
+    <a href="http://www.andywhittaker.com/ecu/obdii_hardware.htm">(website down)</a><br><br>
+    Silicon Engines ISO 9141 interface:<br>
+    <a href="http://www.siliconengines-ltd.com/products/9141-232.html">(website down)</a><br>
+        It is supplied in a robust box with lots of lights. This interface was used to
+    develop the first bits of the freediag project. It is functionally the same
+    as the above two interfaces (with the exception of all the lights and the
+    box).<br><br>
+
+        Jeff's OBD-II ISO 9141 interface:<br>
+  <a href="http://jeff.noxon.cc/2013/05/18/opendiag-obd-ii-schematics-pcb-layout/">
+		http://jeff.noxon.cc/2013/05/18/opendiag-obd-ii-schematics-pcb-layout/</a><br>
+This site shows you how to build a generic serial to ISO9141 interface.<br>
+	<br> List of configurable items in "set" submenu :
+	<table><tr>
+	<td><code>dumbopts [opts]</td></code>
+	<td>Sets dumb-interface-specific options. Use set dumbopts ? to get details.<br>
+		See <a href="dumb_interfaces.txt">doc/dumb_interfaces.txt</a> for further information</td>
+	</tr>
+	<tr>
+	<td><code>port [devname]</td></code>
+	<td>Sets serial port to use. "port ?" will show auto-detected ports not currently in use.</td>
+	</tr>
+	</table>
+    <br>
+    Availability : various vendors, or DIY projects<br><br>
+    <li>B.Roadman ISO9141/VPW/PWM interface:<br>
+    <a href="http://www.obddiagnostics.com/">(website down) </a><br>
+    Freediag Driver: BR1 (diag_l0_br.c)<br>
+    <br>
+    Another commercially available interface, we haven't yet tested the ISO9141
+    side of the interface (supports address 0x33 only), and it does not support ISO14230. Future versions
+    will support ISO14230 and we used this interface to develop the
+    J1850-VPW/PWM support in Freediag. Thanks to B. Roadman for the donation of
+    hardware to the project.<br>
+    These qualify as "smart" interfaces.<br>
+    Availability: questionable<br>
+    <br> List of configurable items in "set" submenu :
+    	<table><tr>
+	<td><code>port [devname]</td></code>
+	<td>Sets serial port to use. "port ?" will show auto-detected ports not currently in use.</td>
+	</tr>
+	</table>
+    <br>
+    <li>Multiplex Engineering VPW, PWM, and ISO 9141-2 interface:<br>
+    <a href="http://multiplex-engineering.com/obd2-interfaces/">http://multiplex-engineering.com/obd2-interfaces/</a><br>
+    Freediag Driver: MET16 (diag_l0_me.c)<br>
+    <br>
+    When ordering this interface you must order a T16 type interface.
+    Multiplex Engineering produce two varieties of the T16 interface:<br>
+    <br>
+    <ul>
+      <li>T16-002: opto-isolated interface that requires power from the PC's
+          serial port and uses a straight through male-female DB9 cable.
+      
+      <li>T16-003: Non-opto isolated interface, uses a null-modem female-female
+          DB9 cable, doesn't require (much) power from the PC.
+    </ul>
+    <br>
+    Many PC's do not provide enough power to drive the T16-002 interface and
+    thus errors will occur (and "checksum error" messages will be printed by
+    the freediag software). As the T16-003 has no opto-isolation there is a
+    slight risk of damage to the PC. According to the manufacturer the risk is
+    low and is negligible unless the vehicle is connected to a battery
+    charger.<br>
+    <br>
+    When ordering an interface an interface that operates at 19200 baud and
+    uses address 0x38 should be specified, or simple modifications to
+    <i>diag_l0_me.c</i> and recompilation will be needed.<br>
+    <br>
+    The T16-002 interface was used to develop support for smart interfaces in
+    freediag, it worked on a modern Sony Laptop but not on various branded PCs
+    tested.<br>
+    Availability: See website<br>
+    <br> List of configurable items in "set" submenu :
+    	<table><tr>
+	<td><code>port [devname]</td></code>
+	<td>Sets serial port to use. "port ?" will show auto-detected ports not currently in use.</td>
+	</tr>
+	</table>
+    <br>
+     <li>ELM32* based interfaces:<br>
+    <a href="http://elmelectronics.com/obdic.html">http://elmelectronics.com/obdic.html</a><br>
+    Freediag Driver: ELM (diag_l0_elm.c)<br>
+    <br>
+    The ELM32x ICs are smart protocol translators that are frequently found in recent USB->OBD cables. Freediag partially
+    supports these devices. Be aware that many so-called ELM32x adapters use a cloned but not completely compatible
+    IC. Most cheap devices sold on eBay / Amazon will be clones.<br>
+    These qualify as "smart" interfaces.<br>
+    Availabilty: IC by itself direct from vendor, or assembled interfaces from various third parties<br>
+    <br> List of configurable items in "set" submenu :
+    	<table><tr>
+	<td><code>port [devname]</td></code>
+	<td>Sets serial port to use. "port ?" will show auto-detected ports not currently in use.</td>
+	</tr>
+	</table>
+    <br>
+    <br>
+    <li>CARSIM interface:<br>
+    Freediag driver: CARSIM (diag_l0_sim.c)<br>
+    <br>
+    The CARSIM interface allows testing of higher levels (L2, L3) without
+   having an actual car connected. It reads requests and responses from a file.<br><br>
+
+This was coded by vnevoa ~2004. From his presentation: <br>
+Basically, it is a file reader and parser that searches for the byte
+sequence that is being sent to the car, and if it finds any number of
+answers for it, it simulates the responses from the car. I included a
+simple parsing mechanism to simulate whatever test values we want by
+placing a few text tokens inside the response sequences, which get
+translated into byte values through specific functions.<br>
+	<br> List of configurable items in "set" submenu :
+	<table>
+	<tr>
+	<td><code>simfile [filename]</td></code>
+	<td>Select simulation file to use as data input. See freediag_carsim_all.db for an example</td>
+	</tr>
+	</table>
+
+  </ol>
+  
+  <br><br>
+  <a name="matrix"></a>
+  <div class="section">Compatibility Matrix</div>
+
+  <ul>
+    <table width="70%">
+      <tr>
+        <th width="100">Interface</th>
+        <th width="50">ISO9141</th>
+        <th width="50">ISO14230&nbsp;(*)</th>
+        <th width="50">J1850-VPW</th>
+        <th width="50">J1850-PWM</th>
+        <th width="50">CAN</th>
+      </tr>
+      <tr>
+        <th>Dumb</th>
+        <td><b>YES</b></td>
+        <td><b>YES</b></td>
+        <td>NO</td>
+        <td>NO</td>
+        <td>NO</td>
+      </tr>
+      <tr>
+        <th>B Roadman</th>
+        <td><b>YES (1)</b></td>
+        <td>NO (3)</td>
+        <td><b>YES (1)</b></td>
+        <td><b>YES</b></td>
+        <td>NO</td>
+      </tr>
+      <tr>
+        <th>Multiplex</th>
+        <td><b>YES</b></td>
+        <td><b>YES (2)</b></td>
+        <td><b>YES (1)</b></td>
+        <td><b>YES (1)</b></td>
+        <td>NO</td>
+      </tr>
+      <tr>
+        <th>ELM (4)</th>
+        <td>YES</td>
+        <td>YES</td>
+        <td>NO (1)</td>
+        <td>NO (1)</td>
+        <td>NO</td>
+      </tr>
+    </table>
+    <br>
+    (<b>*</b>) Support for ISO14230 software layer, not for 24V vehicles.<br>
+    
+    (<b>1</b>) Should work, but not tested.<br>
+    
+    (<b>2</b>) Will work in some applications [including OBDII] but h/w doesn't
+    support all of the features of the protocol.<br>
+  
+    (<b>3</b>) Support planned by h/w manufacturer.<br>
+    
+    (<b>4</b>) ELM support is incomplete in freediag.<br>
+  </ul>
+
+</div>
+
+</body>
+
+</html>

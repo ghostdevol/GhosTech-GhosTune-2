@@ -1,0 +1,267 @@
+***
+fenugrec - 2014-2015
+This is bits and pieces of descriptions of elements of the source code. The
+code can be confusing, and it takes time to become familiar with all the
+data structures, functions, etc. In the ~15 years' existence of the project,
+I think no one took the trouble of documenting the source code beyond 
+comments directly in the source. This is OK but I felt there was a need for
+a short document that would explain some concepts more in detail, a sort
+of quick-reference guide for understanding / hacking freediag.
+At the moment this is just a collection of notes : whenever I spend
+more than a few minutes investigating something in the code, I write
+a brief summary in here. Hopefully this will benefit someone else
+as well.
+*** general notes
+Physical interfaces (i.e. ELM323, dumb adaptor, etc) are connected to a serial port (usually called
+"subinterface" in the code -> WIP, subinterface is about to disappear).
+Only one L0 driver can use a given "subinterface", ex.: /dev/ttyUSB0 (a subinterface) is used exclusively by diag_l0_elm (the L0 driver) to manage a physical ELM32x interface.
+This association is described in a "struct diag_l0_device", often named "dl0d" in the code.
+
+*** data structures
+
+struct diag_l0_device : unique association between an l0 driver (diag_l0_dumb
+for instance) and a hardware resource (serial port, file, etc). The current implementation supports
+only one L1 proto per L0 device; this will change. diag_l0_new() creates a new, empty, diag_l0_device
+struct that must be configured (diag_l0_getcfg() etc), then opened with diag_l0_open().
+
+struct diag_l0 : every diag_l0_???.c driver fills (statically, at compile-time) in one of these to describe itself.
+It includes its name, supported L1 protos, and pointers to "exposed" functions (diag_l0_initbus, _setspeed, etc).
+Those diag_l0 structs are accessible only through the l0dev_list[] array in diag_config.c
+
+struct diag_l2_proto : every diag_l2_???.c handler fills in one of these (statically, at compile-time) to describe itself.
+As with 'struct diag_l0' above, these are accessible through l2proto_list[].
+
+struct diag_l2_link : these are alloc'ed + filled by diag_l2_open; diag_l2_links is a linked-list
+ of all the active l2 links. An l2 link associates a diag_l0_device with one L1 protocol. This
+ struct also holds flags (inits supported, etc.). diag_l2_link structs are not used outside
+ diag_l2{.c, .h}.
+ Note : despite the name, diag_l2_link says nothing about the L2 protocol used.
+ See struct diag_l2_conn
+ 
+struct diag_l2_conn : these are alloc'ed + filled by diag_l2_startcommunications() only !
+ and they are free'd in diag_l2_stopcommunications. This is a complex structure defined in
+ diag_l2.h; it specifies a diag_l2_link, an l2 protocol handler and a lot of flags & settings.
+ A diag_l2_conn is needed to use the "public" l2 functions (_send, _request, _ioctl, etc.)
+ The existence of a diag_l2_conn indicates connection to an ECU has been established
+ (or a monitoring / "sniffing" connection has been established). A diag_l2_conn can be used
+ by (one or more ?) L3 connection(s), see struct diag_l3_conn.
+ 
+struct diag_l3_conn : these are alloc'ed / freed by diag_l3_start and diag_l3_stop, respectively;
+ and added to the global diag_l3_list linked list. Associates a diag_l2_conn with a diag_l3_proto.
+ 
+struct diag_msg : this hold a message received from, or to be sent to, an ECU. Holds a bunch
+ of flags, and a data buffer. Only diag_allocmsg() and diag_freemsg() should be used for
+ dynamically allocating these structs, as they take care of cleaning up pointers as required.
+ Messages can be linked with the ->next member. The ->iflags member should probably not
+ be touched ever (used by _allocmsg() and _freemsg())
+
+ 
+*** functions
+
+diag_l2_close : this is called from cmd_diag_disconnect to close the global_l2_dl0d XXX
+
+diag_l1_close calls the ->diag_l0_close func of the specified diag_l0_device; this terminates
+ an existing link between an l0 driver and its serial port. Only called in diag_l2_closelink;
+diag_l2_closelink is called by diag_l2_open only ? so nothing ever closes the l0 devices ! XXX
+
+diag_l2_open: calls diag_l1_open with specified l0name, subinterface, l1proto;
+ adds a diag_l2_link to the diag_l2_links linked-list if successful. For some reason
+ this returns struct diag_l0_device .
+
+diag_l1_open: finds l0name in the linked list l0dev_list; calls the l0 driver's diag_l0_open
+ function with the specified subinterface and L1 proto.  Returns the struct diag_l0_device *
+ it got from ->diag_l0_open.
+diag_l1_open is currently only called from diag_l2_open.
+
+diag_l0_open(...) : this function, defined by each l0 driver, opens the specified L0 device
+ 
+
+
+diag_l0_initbus : these are called by diag_l1_initibus; diag_l1_initbus is only called by
+ diag_l2_ioctl.
+diag_l0_initbus is assumed to return at exactly :
+- the end of tWUP, if iso14230 fastinit (just in time to send the startcomm request)
+- right after receiving the 0x55 sync byte, if iso9141 or iso14230 slowinit (just in time to get the 2x keybytes)
+
+
+diag_tty_write : diag_l0_dumb, in certain cases, would need this to be non-blocking... I'm unsure of how
+the different implementations handle this.
+
+
+cmd_diag_addl3 : this supposes we already have a global L2 connection to an ECU; it
+ defines global_l3_conn if diag_l3_start() is succesfull.
+ 
+cmd_diag_reml3 : does the opposite of addl3
+
+**** layer "tree"
+As of 1.01, here's roughly how the layers can be interconnected :
+
+"subinterface" : a physical serial port. In the distant past it was "int subinterface" and was unused.
+At some point it was changed to "char *subinterface" and (ab)used to specify serial ports. XXX soon irrelevant !
+
+L0 :
+any "subinterface" can be associated with only one l0 driver. This link is defined in
+a struct diag_l0_device described earlier;
+Most L0 drivers don't support multiple "instances" of themselves (i.e. trying to use an ELM on ttyS0
+and another ELM on ttyS1 at the same time); this is partly due to global variables in each l0 driver.
+Also, no precautions have been taken to make the l0 drivers re-entrant (see async-safeness note
+later in this doc), so attempting this could be dangerous !
+
+L1 : this is mostly a "glue" layer: the differences between L1 protocols (DIAG_L1_* in diag_l1.h) are
+handled in the l0 drivers. The code in diag_l1.c interprets the L1flags and acts accordingly; this
+makes it mostly pass-through except for diag_l1_send which takes care of P4 timing and half-duplex
+removal.
+There are no specific data structures linking the L1 and L0 levels.
+
+L2 : This layer tries to abstract most of the differences between standards. Data
+received from L0 levels is framed and stripped of headers + checksum bytes at the L2 level in the _recv()
+functions. When sending data on the bus with _send(), L2 also adds headers and checksums as
+required, so L3 and up don't need to bother with this.
+
+L3 : 
+
+**** Serial ports
+Two main issues : setting custom baud rates (essential for ISO9141/14230 traffic @ 10.4kbps), and
+enforcing precise timeouts (essential for splitting ISO9141/14230 messages).
+1. Custom baud rates
+1a. Linux : a super mess, see diag_tty_unix.c
+	http://www.downtowndougbrown.com/2013/11/linux-custom-serial-baud-rates/
+	http://stackoverflow.com/questions/12646324/how-to-set-a-custom-baud-rate-on-linux
+	https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=683826
+1b. Windows : seems to work ok, does not require any black magic, at least for some USB-RS232 ICs
+
+2. Timeouts
+2a. Linux : Unfortunately the standard method of enforcing a read timeout, c_cc[VTIME] in struct termios,
+ is not good enough (100ms resolution). A few alternate methods are implemented :
+	- a POSIX timer that interrupts the read() call
+	- select() with a timeout, looped
+	- using /dev/rtc and select() (dubious implementation, possibly broken)
+2b. Windows : seems to work ok with the standard SetCommTimeouts()
+
+**** Time & freediag
+Timing can make or break freediag, especially when using dumb interfaces. I will divide
+the timing requirements in two aspects: measurement and control.
+1. Measurement : freediag needs to measure time with different requirement "levels" depending
+on the context:
+	A- Determining when periodic communications need to be sent; this is done by
+	 updating the tlast (time of last communication) member of every active connection. Since
+	 the periodic callbacks are not called very frequently (3 to 10 times per second is more
+	 than enough for ISO14230 and J1979 keep-alive requirements), this time measure can
+	 be of low resolution and arbitrary zero-reference. diag_os_getms() covers this requirement.
+	 One thing that needs to be guaranteed is monotonicity : the time returned by _getms()
+	 needs to be always increasing. Most system time / clock functions are not monotonic;
+	 they can jump forwards or back if time is adjusted by the user or the OS.
+
+	B- Short interval, fine resolution (sub-ms) validation of certain operations. diag_os_gethrt()
+	and diag_os_hrtus() provide this. The Windows implementation uses
+	QueryPerformanceCounter() ; typically a monotonic 1-10MHz counter,
+	 hopefully with little overhead per call and therefore little impact on the measured operation.
+	Linux uses either POSIX clock_gettime() or gettimeofday() as a fallback.
+
+2. Control : freediag needs to make certain things happen at precise times. Again this can
+be seen as three requirement levels:
+	A- Coarse : an error of >10ms is not a problem. The periodic
+	 timer callbacks that take care of keepalive messages would qualify as Coarse: as long
+	 as they are carried out within the required period (P3max=5s for ISO* and J1979),
+	 communications with an ECU will not be perturbed. We could also include the delays
+	 required before starting bus initialization routines (W5=300ms typically).
+	 
+	B- Medium : an error of <= 5ms is desirable, but 10ms is tolerable. Some examples include:
+	 P3 (for ISO
+	 protocols : time after all vehicle responses and before a new request; default is 55ms);
+	 {W1,W2,W3,W4} : (ISO) 5bps slow initialization; P4 when P4 > 0 (ISO interbyte spacing,
+	 if freediag must handle it - most smart interfaces already do). For those requirements,
+	 diag_os_millisleep() is usually satisfactory since even on the worst systems, its
+	 error is still within the allowed window (for instance W4max - W4min = 25ms; I have not
+	 seen _millisleep() on any system I've tested, being off-spec by more than 25ms.
+	 Freediag's current approach for this level is to call _millisleep(x) with x=minimum required
+	 time, and assuming the thread will sleep for x + y ms; y >= 0. This usually works OK.
+	 Arguably the manual-break 5bps init pattern generated by diag_l0_dumb could almost be
+	 included in here; a bit time of 200ms +-  5ms (2.5%) will work with many cars since the
+	 last bit will be skewed by less than 40ms and we can hope an ECU would sample the bits at
+	 their middle (100ms), or thirds (66ms + 133ms).
+	 
+	C- Fine : an error <=2ms is required; <1ms  desirable. This is NOT easy, on any OS. The
+	 good news is that only the L0 dumb driver needs this insane accuracy, for the ISO
+	 bus initialisations. The 5bps init pattern mentioned above really belongs here (1% of
+	 5bps : 2ms). The fast init of iso14230 is very fragile : we need to send a break on TX
+	 for 25ms +- 1ms, and send the StartComm request 50ms +- 1ms after starting the break.
+	 So the 25ms break is already hard to get right (although sending 0x00 at 360bps
+	 is an interesting solution), but then we need to start sending bytes a very precise time
+	 after the break started. Also, if the OS decides to switch tasks 1ms before we send
+	 StartComm, our thread will certainly be re-activated too late. This is in part why
+	 it's sometimes necessary to re-try the ECU wakeup a few times until the timing is
+	 just right, although some ECUs seem more permissive.
+	 
+As much as possible, using an OS-provided sleep function (that yields execution and allows
+other tasks/processes to run) should be used for long delays. On a single-process machine
+(like a microcontroller) it's easy to make NOP loops to wait for a precise number of clock cycles
+but the same can't be done on a typical multitasking OS.
+The Win implementation of diag_os_millsleep() is a hybrid of Sleep() and a NOP loop;
+it tries Sleep() for larger requested delays. It burns off the remaining
+time in a NOP loop. This should work OK if the OS doesn't interrupt us again right after Sleep()
+returns or before we have time to finish our next critical operation.
+
+Notes regarding monotonic clocks on *nix:
+http://blog.habets.pp.se/2010/09/gettimeofday-should-never-be-used-to-measure-time
+https://github.com/ThomasHabets/monotonic_clock
+
+
+**** diag_l2_timer() & diag_l3_timer(), callbacks
+To handle keepalive messages of the various protocols, freediag sets up an OS-specific
+periodic callback function (see diag_os_*.c). This calls diag_l2_timer() and diag_l3_timer();
+these functions parse through the active connections and call the _timeout() functions
+as required. The callback function is called at a higher frequency than typical
+keep-alive message requirements (ex.: callback interval=300ms; iso14230
+needs a TesterPresent request every 5000ms).
+
+**** diag_l2_recv callbacks
+XXX
+
+
+**** "async signal safe"ness, re-entrant functions, callbacks etc.
+This is currently (2014) a bit of a mess. The previous devs knew this was the
+next big problem to tackle, so they flagged many parts of the code as non-async signal
+safe AKA "not re-entrant". These functions (and others) should be made re-entrant, i.e.
+take the necessary precautions so that, if a thread is currently executing
+the function, another thread can safely call the same function. Easier said than done:
+for instance the global linked-list of L2 connections if often accessed / modified
+from a lot of different places (not only in diag_l2.c); if for example the main thread
+is creating or deleting an L2 connection and the periodic callback interrupts it,
+there may be problems when the periodic timer function tries to access the same
+data that was in the process of being modified.
+
+Luckily this shouldn't happen very often in freediag since the periodic timer functions
+(called by the OS automatically at a preset interval, typically for sending keep-alive
+messages) are not called often. But, if a protocol handler calls a _send
+function for its keep-alive message, while the user was already transmitting a
+request (which requires the same low-level functions), this will be a problem.
+
+A possible solution would be to create a diag_os_lock() function that uses OS-specific
+locking mechanisms (mutex, etc), to make most low-level functions re-entrant.
+(Probably L2, L3 and everything below since the timer callbacks use both
+L2 and L3 functions). To avoid deadlocks, the periodic timer callback could wait without
+blocking (ex.: WaitForSingleObject of Win API) while trying to acquire the lock.
+
+In addition, the periodic timer callbacks should be protected in case they get called
+before the previous keepalive isn't complete (if for some reason it took longer to
+complete than the timer interval).
+
+**** elements that should have async safeness :
+(very incomplete list)
+debug flags;
+printf / fprintf
+diag_os_getms()
+diag_os_millisleep()
+global connection linked-lists and associated structures
+*alloc() should not be called from the timeout functions (it is: if the L2 timeout
+function receives a message, it alloc's it). Maybe freediag's wrappers (diag_?alloc())
+could be made re-entrant with locks + waits.
+
+**** debug / error messages
+- Messages and information the user needs to see at the CLI : printf
+- error messages : fprintf(stderr,...)
+- debug / extra info : DIAG_DBGM() or DIAG_DBGMDATA() (see diag.h)
+- if a diag_... function returns an error, only return "diag_[i,p]seterr() when generating a new
+error makes sense. Otherwise, to avoid "stacking" many error messages, use
+diag_ifwderr / diag_pfwderr to forward the error to the upper level.

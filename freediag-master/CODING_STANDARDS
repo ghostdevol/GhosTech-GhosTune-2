@@ -1,0 +1,72 @@
+Current (as of 2017) recommended practices; merged from initial notes
+bye Peter Dufault circa v1.0.0.
+
+See the end for commit formatting.
+
+1. The code should adhere to the C language standards that avoid silly
+problems.  That means, everything needs to have prototypes, and
+shouldn't have redundant prototypes, etc.
+
+2. On Linux/UNIX, try to follow POSIX as much as possible. If not,
+split functionality in OS-specific files (examples : diag_tty_* and diag_os_*)
+This is to reduce #ifdef indigestion.
+
+3. malloc, calloc, etc. : these should never be called directly; instead
+use the diag_*alloc wrappers defined in diag.h and diag_general.c
+
+4- Aiming for a silent ouptut when compiling with 
+ "-Wall -Wextra -pedantic -std=gnu99" flags will help find many potential bugs.
+  The code should be as C99-compliant as possible, as a guideline.
+ 
+5- regarding casts : many parts of the code casted function
+ pointers to object pointers implicitly such as 
+  printf("callback %p", diag_function) which is not strictly correct.
+ I know of no easy, portable method of printfing a function pointer.
+ http://stackoverflow.com/questions/2741683/how-to-format-a-function-pointer
+ has excellent information on the subject.
+ In freediag this happened with debug message fprintfs. In
+ the meantime I removed the offending casts and added a //%pcallback!
+ comment in every place.
+ Also, on certain versions of windows, the printf() provided by msvcrt.dll is
+ broken and *DOES NOT* support the %llu and %lld formatters !
+  
+6- any function that can fail, MUST free() everything it successfully
+ alloc'ed so far, *before* returning an error. Similarly, it should "undo"
+ all previous succesful operations : if it open()ed something, it should
+ close() before returning; etc.
+ 
+7- A return statement is not a function call : "return 0;" , not
+ "return(0);"
+
+8- End-of-line char is LF (0x0A).
+
+9- Linked-list handling : use the macros from "utlist.h"
+
+10- I like the tab character for indention, and prefer "1TBS" coding style.
+
+
+*******
+
+Submitting contributions
+
+to make my life easier, please 
+
+- work on a "feature branch" on your fork, not the master branch !!
+
+- Don't use "git merge", except "git merge --ff-only" if you really need to !
+
+- format commit messages along this popular pattern:
+	Line 1 is a short (<70char) summary of the commit. Must start with the applicable module, section or file name.
+	Examples : "L0_elm : fix ATWM request"  ; "cmd_set_interface : add custom setting handlers"; etc.
+
+	Line 2 is blank
+
+	Line 3+ : extra details, rationale, etc. (if required)
+
+- use "git rebase -i" to squash fixup commits, omissions, etc. 
+
+- before submitting, update your master branch, then "git rebase -i master" on your feature branch. Then submit PR as usual.
+
+- After your PR is merged, delete your feature branch ! If you want to continue work, just create a new branch. Branches are cheap.
+
+Thanks !

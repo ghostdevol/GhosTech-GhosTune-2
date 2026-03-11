@@ -1,0 +1,326 @@
+This summarizes the changes between freediag releases. Each release package
+contains a more detailed changelog.
+
+Since ~ 2009, I (fenugrec) have maintained the freediag project on sourceforge for releases, and github for sourcecode.
+I took the liberty of modifying the version number format to MAJOR.MINOR, the MINOR number
+written with 2 digits ( %02d if you will). Some early versions had a suffixed lower-case letter
+indicating a snapshot of the CVS source tree.
+
+
+
+
+*** Release 1.09 ; 2021-12-10
+- Renamed binary from 'scantool' to 'freediag' : too many collisions with the commercial product from "scantool.net".
+- lots of under-the-hood restructuring, too much to list
+
+* v-ladimir @Shuher:
+- Windows: use timeBeginPeriod() to improve timing. Should improve iso14230 fastini
+
+* Adam Goldman @aaeegg:
+- Did a lot of work adding extended diagnostics for '96-'98 Volvo 850, S40, C70, S70, V70, XC70 and V90
+(D2 protocol, previously called KWP6227 based on the (KW2*128)+KW1 formula for its key bytes)
+- More work on KWP71/1281 protocols
+
+* Neven Sajko @nsajko:
+- Cleaned up a lot of poor/inconsistent formatting, subtle concurrency bugs and data races.
+- added schedSetter, a program to run freediag and set its scheduling priority
+
+* Christian Fehse @cfehse:
+- Added version and manifest resources to the windows build.
+- support native , current Windows compilers from Microsoft and Embarcadero.
+- add example "build_simple.bat" script
+
+
+
+*** Release 1.08 ; 2016-11-03
+- Some breaking changes to CLI (L0-specific options, etc)
+- OBD J1979 : some fixes : Mode 9 "test rvi" command, Mode 2 FreezeFrame data
+- L0 ELM driver : some usability fixes
+- Rework of L0/L1/L2 layers to provide L0-specific configurable options.
+- CLI : deal better with long command lines instead of silently truncating
+- iso14230 : many fixes; better support for  RequestCorrectlyRcvd-RspPending negative responses
+- better OS error messages on Win*
+
+*** Release 1.07 ; 2016-02-26
+** Tomek Kazmierczak
+- Added support for VAG KWP1281 (implemented according to SAE J2818) !!
+
+** fenugrec
+- lots of L0/TTY API rework for upcoming changes
+- tty : added code to show available serial ports
+- diag_tty_break() implementation on Win*: modified for more accuracy
+- minor cleanup of CLI code and global variables for upcoming changes
+- L0 Multiplex Engineering ME-T16 driver : many fixes to code rot due to lack of testing
+- Improved J1850 code
+
+
+*** Release 1.06 ; 2015-09-24
+** Tomek Kazmierczak
+Merged readline completion from Tomasz Kazmierczak:
+- added filename completion for certain commands, filtering hidden commands, multi-level command completion
+- Massively contributed to the conversion to POSIX timers, and the much-needed rework of low-level tty code
+
+** fenugrec
+A number of uninitialized vars, possible corruption, segfaults, mem leaks, etc.
+
+Some doc/*.html cleanup
+ELM support : many improvements !
+ -Auto-detect speed, supported features (clone VS genuine)
+ -fixed receiving multiple responses
+ Low level serial port code : major rework of the unix TTY code, including
+ - better read timeout accuracy
+ - much more solid methods of setting non-standard baudrates
+diag_os timing improvements:
+ -added diag_os_gethrt() + diag_os_hrtus()  (monotonic microsecond clock)
+ -diag_os_unix.c: auto detect clock_gettime() source & capabilities
+diag_l0_dumbtest : added more tests
+diag_l0_sim:
+ -moved global data & cfg to "instance"-specific struct
+ -added optional protocol selection/restriction
+Fixed a few issues with CR+LF vs LF line endings not being treated properly.
+Static allocation of L0, L2 and L3 lists instead of malloc'd linked-lists
+scantool_cli.c : allow "cmd_source", and rc / ini files to exit freediag
+Improved presentation of many commands
+Fixed: %llu printf formatters are broken in msvcrt.dll (windows)
+New: unit tests !
+Improved L2 ISO framing
+Linked list rework: started using third-party linked-list macros, for great justice and code cleanliness.
+
+
+*** Release 1.05 ; 2014-11-18
+From the release notes:
+This release includes a ridiculous amount of commits since 1.04.
+ELM interfaces now have at least basic functionality. Limited testing so far.
+
+New in 1.05:
+Mostly functional ELM support. May still contain errors.
+Fixed a lot of memory leaks and corruption; segfaults are getting rare.
+
+Fixes: (summary of CVS commits)
+
+sanitized diag_freemsg(), diag_dupsinglemsg(), diag_dupmsg(), diag_allocmsg()
+do_cli : cleanup before exit (cmd_stoplog, cmd_diag_disconnect, diag_end)
+removed unused references to gettimeofday()
+CMake fixes, +  patches from xantares09
+diag_l0_elm : many changes
+scantool_dyno, scantool_diag : improved L3 connection management
+Optimistic cleanup of message framing & formatting between L3 and L2
+autotools: removed check for ncurses (not used)
+autotools, CMake: added check for readline (optional dep)
+Fixed RQST_HANDLE_* dangerous int<->void* casts
+Reworked L2/L3 periodic keepalive timer mechanisms
+Fixed sample carsim .db files (SID positive response = request | 0x40)
+Added diag_l3_request() function (diag_l3.c)
+Fixed endless loop in l2_iso9141_int_recv with CARSIM interface
+Added l0test 9 : diag_tty_read timeout accuracy check
+Removed redundant calls to QueryPerformanceFrequency in win32 code
+Fixed win32 diag_os_millisleep auto-correction (was disabled !)
+
+
+*** Release 1.04 ; 2014-04-02
+From the release notes:
+This release fixes some minor issues and increases usability of the command-line tool.
+
+New in 1.04:
+diag_l0_dumb: added DIAG_L1_BLOCKDUPLEX flag to accelerate P4==0 half-duplex removal
+scantool_debug: added l0test #7 and 8 for half duplex removal
+Split diag_os.c into diag_os_unix and diag_os_win.c
+
+
+Fixes: (summary of CVS commits)
+
+Minor fix to scantool_cli.c htoi() with negative values
+Added "bad checksum" flag to struct diag_msg.iflags
+Changed L2 & L3 timer expiry mechanism (in struct diag_l2_conn, diag_l3_conn)
+Replaced gettimeofday() by diag_os_getms() where monotonicity is needed (bug #14)
+Added diag_os_chronoms() as a general purpose resettable stopwatch (mostly for logging)
+Replaced gettimeofday() by diag_os_chronoms() for logging purposes  (bug #14)
+CMake + autotools : added check for librt if required
+diag_l0_sim.c : corrected sin() conversion to 8bit
+diag_l2_timer: skip keepalive messages for connections marked as _CLOSING
+diag_l2_iso14230: implemented StopCommunication request in _stopcomms()
+scantool_debug.c: added text description of debug flags
+Fixed diag_l0_sim not closing properly
+
+
+*** Release 1.03 ; 2014-03-26
+From the release notes:
+
+New in 1.03:
+-Major fixes in L0 code (introduced in previous overzealous clean-ups)
+-iso14230 : l2_14230_startcomm: added decoding of the keybytes to use proper header format
+-l2_14230_int_recv : added checksum verif
+-added more tests to l0test command
+-win: added diag_os_calibrate()
+-win: added diag_os_millisleep auto-adjustment
+
+
+Fixes: (summary of CVS commits)
+
+-l0_recv *: do not diag_iseterr if diag_err_timeout (fixed regression)
+-cmd_disconnect closes things properly now (bug #19)
+-l2_14230 and l3_j1979 timeout callback : disable debug messages while sending keepalive
+-Added L2 ioctl DIAG_IOCTL_IFLUSH to call diag_tty_iflush (bug #18)
+-Improved disconnect + connection closing in diag_l2.c
+-Fixed incomplete disconnect in diag_l2_stopcommunications()
+-diag_tty_win.c : CreateFile with no buffering; always flushfilebuffers in _write()
+-bug #17: removed debugging fprintf()s in critical sections
+
+
+*** Release 1.02 2014-03-23
+From the release notes:
+Many fixes to win32 code.
+New in 1.02:
+Windows version has a lot of self-verification for timing, and a small amount of self-adjustment as well.
+All platforms: there is now a special debugging mode for troubleshooting dumb interfaces.
+
+Fixes: (summary of CVS commits)
+
+diag_l0_dumb : fixed spurious detection of sync byte
+diag_l0_elm : doesn't support raw L1 proto (only iso 9141 & 14230)
+new L1 flag (DIAG_L1_AUTOSPEED) for smart interfaces
+diag_l1_setspeed is only called from diag_l2_ioctl now
+bug #16: removed function pointers in debugging messages
+diag_tty_break win32 : added auto-adjustment of timeout (running average)
+added L line polarity option for L0_dumb devices.
+added optional diag_tty_fastbreak (specifically for iso14230 fast init)
+diag_l0_dumb : added optional fastbreak & unified initbus functions
+added TRY_POSIX build option in CMake and Autotools
+bug #13: diag_l0_dumb uses manual 5bps init by default (MAN_BREAK) now.
+cleaned some redundant delays (i.e. more than one level waiting W5 before initbus, etc.)
+Sanitized alloc/free management in L2 startcomms & stopcomms functions
+sanitized USE_RCFILE defines
+A *lot* of code cleanup and commenting. freediag almost compiles without any warnings on at least a few platforms.
+Misc improvements to the CMake build system.
+
+
+*** Release 1.01 2014-03-04
+Codename "phoenix zombie".
+From the release notes :
+- freediag now compiles and runs on Win32 ! Very preliminary pre-alpha status.
+- A lot of small fixes, hopefully not breaking the rest of the codebase.
+- bugfix : #15, diag_tty_break broken on win32 (64-bit ints)
+- bugfix : #12, struct pid has a member named sprintf
+- bugfix : #10, *printf format warnings / missing casts / other dumb errors
+- bugfix : #8, shell script permissions
+
+- old style device IDs no longer supported. Previously :
+"set interface xyz 2" would use /dev/ttyOBDII2 as the device name. Now the full name must
+be entered :
+"set interface xyz /dev/ttyS0" for instance, or "set interface xyz \\.\COM16" on Win.
+However the code is still in place for the old behavior. See CMakeLists.txt or otherwise define
+OLD_DEVNAME before compiling. (i.e. "make -DOLD_DEVNAME" should do the trick with autotools)
+
+- removed SE9141 and VAG interface files; they fall under the category "DUMB" and shared the exact same code ( diag_l0_dumb.c )
+by default they will not build but the source files are still in the repo for a while.
+To use a K-line only interface, use something like " set interface dumb /dev/ttyUSB2" ;
+To use K + L line interfaces (VAGTOOL and some others), "set interface vagtool /dev/ttyS0".
+
+- CMake build system (in addition to the old GNU autotools system). Mainly for Win32 but is
+ supposed to work on linux, UNIX and OSX.
+ 
+ 
+*** Release 1.00c 2011-06-09
+(copied from release notes :)
+- ELM preliminary support added, possibly filled with bugs.
+- Systems with kernel>=2.6 will probably have timing problems
+- CARSIM interface should work reliably
+- Dumb serial interfaces (VAGTOOL, SE9141) are merged into one file, diag_l0_dumb.c . "set interface dumb /dev/ttyS0" will enable this interface.
+- Next release will remove the separate VAGTOOL & SE device files. They will be totally replaced by the single "dumb" driver, which will be configurable to use (or not) the L-line. This was the only difference between the two drivers.
+
+
+*** Release 1.00b 2011-05-29
+(copied from release notes :)
+- ELM support is still not complete (though under way)
+- Systems with kernel>=2.6 will probably have timing problems
+- CARSIM interface should work reliably
+
+
+*** Release 1.00a 2011-05-21
+A snapshot of the actual CVS tree, with the goal of making a source code package available for
+download. Many people will not bother with CVS just to try some experimental software.
+This was the first package released since freediag-0.3, and did not include many new features.
+
+***********
+The following notes are from the pre-2004 notes of the previous developpers, including
+(listed in no particular order)
+
+Richard Almeida
+Steve Baker
+Colin J Helliwell
+Steve Meisner
+Vasco Nevoa
+Guilhem Valentin
+Peter Dufault
+Bjorn Helgaas
+Andy Whittaker
+
+*** Version 1.0.0 (2004-06-04 , not packaged for release?)
+
+The freediag project had effectively 'died'.  No commits had been
+made to the CVS repository in six months - no releases had been made
+in almost a year and all of the forums and mailing lists were idle.
+
+In resurrecting the project, it was necessary to take several 'personal'
+versions that people had been working on (and been unable to contribute
+back to the CVS respository) - and commit all of those changes in one
+mighty change.
+
+It's hard to list the differences between 0.3 and the first of these
+'reborn' freediags - so I've chosen to start with a new (three part)
+version number to indicate this radical rebirth.
+
+The vast majority of changes are due to Peter Dufault - to whom much
+is owed.
+
+*** Version 0.3 ; 2003-04-20
+
+Changes 0.2->0.3
+
+1) Fix timing issue in idle code where idle responses arent always read
+   on "smart" interfaces (me/br) and then confuse the application
+2) Fix iso14230 code so that it works with message >127 bytes (bad typecast)
+3) Fix BR-1 ISO9141 support
+4) Support the "new BR-1 interface with ISO14230"
+5) Support response from multiple ECUs in Scantool (lots of changes)
+6) Make scantool read CVN instead of just how many messages to get CVN
+7) ISO14230 now will use "user" supplied addresses on a per message basis
+   - it will use the original connection addresses if 0 is supplied as a
+   src/dest address to the send() routine and for all idle (tester present)
+   messages
+8) Start of elm device support [iso interface only]
+9) Support ISO9141-2 cars which return keybyte 0x94 0x94, not just 0x08 0x08
+10) Ensure set source address is used by scantool correctly
+11) Added local mkdep for more portability
+12) Removed some typecasts in defines used in case statements as this breaks
+	latest versions of GCC
+
+*** Version 0.2 ; 2002-06-12
+
+Changes 0.1->0.2
+
+Thanks to Bjorn Helgaas for much of this stuff ! And others for testing ...
+
+1) Fix J1979 idle message format (affects ISO9141 cars)
+2) Fix coredump on ISO9141 cars caused by uninitialised timer
+3) Add basic J1850 support for smart interfaces such as Multiplex Engineering
+4) Support for B. Roadman BR1 interface
+5) diag_l1_open now checks layer 1 supported protocols against requested protocol
+6) Fix a lot of the display of values in monitor mode
+7) Add English display of units (configurable between English and Metric)
+8) Fix many spelling errors in comments and printed messages
+9) Extended data logging
+10) Readline() support to give command line editing in the scantool
+11) autoconf to make it build on Linuxs other then Redhat
+12) diag_l1() bug where if you scanned, then changed interface type and scanned again, coredump
+13) Fixed ISO14230 slow init to expect correct keybytes
+14) Scantool handles h/w interface open failure nicely now
+15) Get/Display Stored DTCs (mode 3) instead of just printing how many DTCs
+16) Move O/S specific serial code into diag_os_linux.c from layer 0 drivers
+17) Add $HOME/.scantoolrc startup command file support
+18) Add ability to read in command files (source command)
+19) Various other minor fixes
+
+*** Version 0.1 ; 2002-01-17
+
+Initial release
